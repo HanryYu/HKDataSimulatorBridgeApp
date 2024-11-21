@@ -18,36 +18,40 @@ struct DataBridgeView: View {
     var body: some View {
         VStack {
             DateRangePickerView(startDate: $startDate, endDate: $endDate)
-                .padding()
             
             Picker("Operation Type", selection: $selectedTab) {
                 Text("Export").tag(0)
                 Text("Import").tag(1)
             }
             .pickerStyle(SegmentedPickerStyle())
-            .padding()
             
-            if let sampleType = typeWrapper.type {
-                if selectedTab == 0 {
-                    ExportView(
-                        typeWrapper: typeWrapper,
-                        sampleType: sampleType,
-                        startDate: startDate,
-                        endDate: endDate,
-                        viewModel: viewModel
-                    )
+            Group {
+                if let sampleType = typeWrapper.type {
+                    if selectedTab == 0 {
+                        ExportView(
+                            typeWrapper: typeWrapper,
+                            sampleType: sampleType,
+                            startDate: startDate,
+                            endDate: endDate,
+                            viewModel: viewModel
+                        )
+                    } else {
+                        ImportView(
+                            typeWrapper: typeWrapper,
+                            sampleType: sampleType,
+                            viewModel: viewModel
+                        )
+                    }
                 } else {
-                    ImportView(
-                        typeWrapper: typeWrapper,
-                        sampleType: sampleType,
-                        viewModel: viewModel
-                    )
+                    Text("Unsupported Data Type")
+                        .foregroundColor(.red)
                 }
-            } else {
-                Text("Unsupported Data Type")
-                    .foregroundColor(.red)
             }
+            .frame(maxHeight: .infinity, alignment: .center)
+            
         }
+        .padding(.horizontal, 16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .navigationTitle(typeWrapper.name)
         .task {
             if let sampleType = typeWrapper.type {
@@ -135,6 +139,8 @@ struct ExportView: View {
         VStack {
             if viewModel.isLoading {
                 ProgressView("Loading...")
+            } else if viewModel.samples.isEmpty {
+                Text("No data found.")
             } else {
                 List(selection: $viewModel.selectedSamples) {
                     ForEach(viewModel.samples, id: \.uuid) { sample in
@@ -142,9 +148,10 @@ struct ExportView: View {
                     }
                 }
                 .environment(\.editMode, .constant(.active))
+                .frame(maxHeight: .infinity, alignment: .center)
                 
-                HStack {
-                    Button("Copy") {
+                HStack(spacing: 50) {
+                    Button("Copy Data") {
                         if let data = viewModel.exportSelectedData() {
                             UIPasteboard.general.string = data
                         }
@@ -156,7 +163,7 @@ struct ExportView: View {
                     }
                     .disabled(viewModel.selectedSamples.isEmpty)
                 }
-                .padding()
+                .padding(.vertical, 8)
             }
         }
     }
@@ -170,11 +177,14 @@ struct ImportView: View {
     @State private var showFileImporter = false
     
     var body: some View {
-        VStack {
+        VStack(spacing: 24) {
             TextEditor(text: $viewModel.importText)
                 .frame(height: 200)
-                .border(Color.gray, width: 1)
-                .padding()
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                )
             
             if viewModel.samples.count == 1 {
                 Toggle("Reset to Current Time", isOn: $viewModel.resetToCurrentTime)
@@ -186,13 +196,24 @@ struct ImportView: View {
             }
             .padding()
             
-            Button("Import to HealthKit") {
+            Button {
                 Task {
                     try? await viewModel.importData(viewModel.importText, type: sampleType)
                 }
+            } label: {
+                Text("Import to HealthKit")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .padding(.vertical, 16)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 24)
+                    .background {
+                        RoundedRectangle(cornerRadius: 12)
+                            .foregroundStyle(.blue)
+                    }
             }
             .disabled(viewModel.importText.isEmpty)
-            .padding()
+            .frame(maxHeight: .infinity, alignment: .center)
         }
         .fileImporter(
             isPresented: $showFileImporter,
@@ -200,5 +221,11 @@ struct ImportView: View {
         ) { result in
             // TODO: Handle file import
         }
+    }
+}
+
+#Preview {
+    NavigationView {
+        DataBridgeView(typeWrapper: .quantityType(.stepCount))
     }
 }
