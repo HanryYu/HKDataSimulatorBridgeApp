@@ -19,18 +19,26 @@ class DataBridgeViewModel: ObservableObject {
     private let healthStore = HKHealthStore()
     
     func loadData(type: HKSampleType, startDate: Date, endDate: Date) async {
-        
-        isLoading = true
-        defer { isLoading = false }
+        await MainActor.run {
+            isLoading = true
+        }
         
         do {
-            samples = try await HealthkitManager.shared.querySamples(
+            let queriedSamples = try await HealthkitManager.shared.querySamples(
                 of: type,
                 from: startDate,
                 to: endDate
             )
+            
+            await MainActor.run {
+                samples = queriedSamples
+                isLoading = false
+            }
         } catch {
-            self.error = error
+            await MainActor.run {
+                self.error = error
+                isLoading = false
+            }
         }
     }
     
