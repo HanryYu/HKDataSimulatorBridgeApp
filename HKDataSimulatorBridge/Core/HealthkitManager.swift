@@ -30,7 +30,7 @@ class HealthkitManager: ObservableObject {
                 sampleType: type,
                 predicate: predicate,
                 limit: HKObjectQueryNoLimit,
-                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)]
             ) { _, samples, error in
                 if let error = error {
                     continuation.resume(throwing: error)
