@@ -56,6 +56,26 @@ struct HKSampleWrapper: Codable {
         let identifier = HKQuantityTypeIdentifier(rawValue: sampleType)
         let categoryIdentifier = HKCategoryTypeIdentifier(rawValue: sampleType)
         
+        // Metadata Conversion
+        var convertedMetadata: [String: Any]?
+        if let metadata = self.metadata {
+            convertedMetadata = [:]
+            for (key, value) in metadata {
+                // Handle different data types based on distinct metadata keys
+                switch key {
+                case HKMetadataKeyHeartRateMotionContext:
+                    if let intValue = Int(value) {
+                        convertedMetadata?[key] = NSNumber(value: intValue)
+                    }
+                case HKMetadataKeyWasUserEntered:
+                    convertedMetadata?[key] = NSNumber(value: true)
+                default:
+                    // Other metadata remains as strings
+                    convertedMetadata?[key] = value
+                }
+            }
+        }
+        
         if let quantityType = HKQuantityType.quantityType(forIdentifier: identifier),
            let quantity = self.quantity,
            let unitString = self.unit {
@@ -67,14 +87,14 @@ struct HKSampleWrapper: Codable {
                                   quantity: quantityValue,
                                   start: startDate,
                                   end: endDate,
-                                  metadata: metadata as? [String: Any])
+                                  metadata: convertedMetadata)
         } else if let categoryType = HKCategoryType.categoryType(forIdentifier: categoryIdentifier),
                   let value = self.categoryValue {
             return HKCategorySample(type: categoryType,
                                   value: value,
                                   start: startDate,
                                   end: endDate,
-                                  metadata: metadata as? [String: Any])
+                                  metadata: convertedMetadata)
         }
         
         throw HealthKitError.invalidData
